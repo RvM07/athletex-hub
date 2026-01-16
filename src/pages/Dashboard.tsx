@@ -21,17 +21,13 @@ interface UserProfile {
 }
 
 interface Booking {
-  _id: string;
-  type: string;
-  className?: string;
-  trainerName?: string;
+  id: string;
+  class_name: string;
   date: string;
-  timeSlot?: string;
-  time?: string;
+  time: string;
+  trainer?: string;
+  notes?: string;
   status: string;
-  trainer?: {
-    name?: string;
-  } | string;
 }
 
 interface Membership {
@@ -51,35 +47,30 @@ const Dashboard = () => {
 
   // Fetch user data
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          navigate('/login');
-          return;
-        }
-
-        // Get user profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        setUser({
-          id: session.user.id,
-          name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-          email: session.user.email || '',
-          role: profile?.role || 'user'
-        });
-      } catch (error) {
-        console.error('Error fetching user:', error);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         navigate('/login');
+        return;
       }
+
+      // Fetch user profile from profiles table
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      setUser({
+        id: session.user.id,
+        name: profile?.name || session.user.user_metadata?.name || 'User',
+        email: session.user.email || '',
+        role: profile?.role || 'user'
+      });
+      setLoading(false);
     };
 
-    fetchUser();
+    checkSession();
   }, [navigate]);
 
   // Class data mapping - each class has its designated trainer
@@ -98,36 +89,18 @@ const Dashboard = () => {
 
   // Map booking type to display name
   const getDisplayName = (booking: Booking) => {
-    if (booking.className) return booking.className;
-    switch (booking.type) {
-      case 'personal_training': return 'Personal Training';
-      case 'class': return 'Gym Class';
-      case 'visit': return 'Gym Visit';
-      default: return booking.type;
-    }
+    return booking.class_name || 'Gym Session';
   };
 
   const getClassInfo = (booking: Booking) => {
-    const name = booking.className || booking.type;
+    const name = booking.class_name;
     return classData[name] || { icon: Dumbbell, color: "from-red-600/10 to-red-600/10", trainer: "TBA" };
   };
 
   const getTrainerName = (booking: Booking, classInfo: { trainer: string }): string | null => {
-    // For personal training, show the trainer name booked with
-    if (booking.type === 'personal_training') {
-      if (booking.trainerName) return booking.trainerName;
-      if (booking.trainer) {
-        if (typeof booking.trainer === 'object' && booking.trainer.name) {
-          return booking.trainer.name;
-        }
-        if (typeof booking.trainer === 'string') return booking.trainer;
-      }
-      return null;
-    }
-    
-    // For gym visit/cardio zone - no trainer
-    if (booking.type === 'visit' || booking.className === 'Cardio Zone') {
-      return null;
+    // If trainer is specified in booking, use it
+    if (booking.trainer) {
+      return booking.trainer;
     }
     
     // For classes, show the class trainer from our mapping
@@ -185,7 +158,7 @@ const Dashboard = () => {
   const handleCancelBooking = async (bookingId: string, className: string) => {
     try {
       await bookingsAPI.cancel(bookingId);
-      setBookings(bookings.filter(b => b._id !== bookingId));
+      setBookings(bookings.filter(b => b.id !== bookingId));
       toast({
         title: "Booking Cancelled",
         description: `Your ${className} session has been cancelled.`,
@@ -298,9 +271,9 @@ const Dashboard = () => {
                     const ClassIcon = classInfo.icon;
                     const displayName = getDisplayName(booking);
                     const trainerName = getTrainerName(booking, classInfo);
-                    const timeDisplay = booking.timeSlot || booking.time || 'TBA';
+                    const timeDisplay = booking.time || 'TBA';
                     return (
-                      <div key={booking._id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors relative">
+                      <div key={booking.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors relative">
                         <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${classInfo.color} flex items-center justify-center shrink-0`}>
                           <ClassIcon className="w-6 h-6 text-white" />
                         </div>
@@ -333,7 +306,7 @@ const Dashboard = () => {
                             size="sm" 
                             variant="ghost" 
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-600/10"
-                            onClick={() => handleCancelBooking(booking._id, displayName)}
+                            onClick={() => handleCancelBooking(booking.id, displayName)}
                             title="Cancel booking"
                           >
                             <X className="w-4 h-4" />

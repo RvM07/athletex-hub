@@ -7,7 +7,7 @@ export interface User {
   name: string;
   phone?: string;
   role: 'user' | 'admin';
-  created_at: string;
+  created_at?: string;
 }
 
 export interface Booking {
@@ -50,6 +50,8 @@ export const authAPI = {
     password: string;
     plan?: string;
   }) => {
+    console.log('Registering user:', userData.email);
+    
     // Sign up with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
@@ -59,13 +61,35 @@ export const authAPI = {
           name: userData.name,
           phone: userData.phone,
         },
+        emailRedirectTo: window.location.origin,
       },
     });
 
-    if (authError) throw new Error(authError.message);
+    console.log('Signup response:', { authData, authError });
+
+    if (authError) {
+      console.error('Signup error:', authError);
+      throw new Error(authError.message);
+    }
+
+    // Check if email confirmation is required
+    if (authData.user && !authData.session) {
+      console.log('Email confirmation required');
+      return {
+        user: {
+          id: authData.user.id,
+          name: userData.name,
+          email: userData.email,
+          role: 'user',
+        },
+        session: null,
+        needsConfirmation: true,
+      };
+    }
 
     // Create user profile in profiles table
     if (authData.user) {
+      console.log('Creating profile for user:', authData.user.id);
       const { error: profileError } = await supabase.from('profiles').insert({
         id: authData.user.id,
         name: userData.name,
@@ -74,7 +98,9 @@ export const authAPI = {
         role: 'user',
       });
 
-      if (profileError) console.error('Profile creation error:', profileError);
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+      }
     }
 
     return {
@@ -85,23 +111,42 @@ export const authAPI = {
         role: 'user',
       },
       session: authData.session,
+      needsConfirmation: false,
     };
   },
 
   login: async (credentials: { email: string; password: string }) => {
+    console.log('Logging in user:', credentials.email);
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
     });
 
-    if (error) throw new Error(error.message);
+    console.log('Login response:', { data, error });
+
+    if (error) {
+      console.error('Login error:', error);
+      // Provide clearer error messages
+      if (error.message.includes('Email not confirmed')) {
+        throw new Error('Please check your email and confirm your account before logging in.');
+      }
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('Invalid email or password. Please try again.');
+      }
+      throw new Error(error.message);
+    }
 
     // Get user profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .single();
+
+    if (profileError) {
+      console.log('Profile fetch error (may not exist yet):', profileError);
+    }
 
     return {
       user: {
@@ -115,6 +160,7 @@ export const authAPI = {
   },
 
   logout: async () => {
+    console.log('Logging out');
     const { error } = await supabase.auth.signOut();
     if (error) throw new Error(error.message);
   },
@@ -137,11 +183,6 @@ export const authAPI = {
       phone: profile?.phone,
       role: profile?.role || 'user',
     };
-  },
-
-  getStoredUser: () => {
-    // Supabase handles session storage automatically
-    return null;
   },
 
   isAuthenticated: async () => {

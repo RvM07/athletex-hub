@@ -14,6 +14,7 @@ import Membership from "./pages/Membership";
 import Checkout from "./pages/Checkout";
 import Contact from "./pages/Contact";
 import AdminDashboard from "./pages/admin/Dashboard";
+import AdminSetup from "./pages/AdminSetup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/classes" element={<Classes />} />
           <Route path="/trainers" element={<Trainers />} />
           <Route path="/membership" element={<Membership />} />
+          <Route path="/admin-setup" element={<AdminSetup />} />
           
           {/* Protected Routes */}
           <Route 

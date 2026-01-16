@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import ClassesSection from "@/components/ClassesSection";
@@ -7,25 +8,31 @@ import TrainersSection from "@/components/TrainersSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 import Dashboard from "@/pages/Dashboard";
-import { supabase } from "@/lib/supabase";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    // Check current session
+    const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[Index] Session check:', !!session);
       setIsLoggedIn(!!session);
     };
 
-    checkAuth();
+    checkSession();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsLoggedIn(!!session);
-    });
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('[Index] Auth state changed:', event, !!session);
+        setIsLoggedIn(!!session);
+      }
+    );
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   // Show loading while checking auth

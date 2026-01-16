@@ -20,20 +20,15 @@ const Login = () => {
 
   // Check if user is already authenticated
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          navigate("/", { replace: true });
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-      } finally {
-        setCheckingAuth(false);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/", { replace: true });
       }
+      setCheckingAuth(false);
     };
 
-    checkAuth();
+    checkSession();
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,21 +36,28 @@ const Login = () => {
     setLoading(true);
     
     try {
-      await authAPI.login({ email, password });
+      const result = await authAPI.login({ email, password });
+      console.log('Login successful:', result);
+      
+      // Wait a moment for Supabase session to fully sync
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       toast({
         title: "😊 Welcome back!",
         description: "You have successfully logged in. Let's get started!",
         className: "bg-green-600 text-white border-green-700",
       });
-      navigate("/");
+      
+      // Navigate to home page which will show Dashboard
+      navigate("/", { replace: true });
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "❌ Login Failed",
         description: "😔 " + (error.message || "Invalid email or password."),
         variant: "destructive",
         className: "bg-red-600 text-white border-red-700",
       });
-    } finally {
       setLoading(false);
     }
   };

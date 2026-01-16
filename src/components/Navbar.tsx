@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, LogOut, UserCircle } from "lucide-react";
+import { Menu, X, User, LogOut, UserCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "./Logo";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 interface UserProfile {
   name: string;
@@ -16,7 +16,6 @@ interface UserProfile {
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
@@ -24,65 +23,37 @@ const Navbar = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get initial session
-    const initAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          // Fetch user profile
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          // Fetch user profile from profiles table
           const { data: profile } = await supabase
             .from('profiles')
-            .select('name, email, role')
-            .eq('id', currentSession.user.id)
+            .select('*')
+            .eq('id', session.user.id)
             .single();
-          
-          setUserProfile(profile || {
-            name: currentSession.user.user_metadata?.name || currentSession.user.email?.split('@')[0] || 'User',
-            email: currentSession.user.email || '',
-            role: 'user'
+
+          setUserProfile({
+            name: profile?.name || session.user.user_metadata?.name || 'User',
+            email: session.user.email || '',
+            role: profile?.role || 'user',
           });
+        } else {
+          setUserProfile(null);
         }
-      } catch (error) {
-        console.error('Auth init error:', error);
-      } finally {
         setLoading(false);
       }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
     };
-
-    initAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      setSession(newSession);
-      
-      if (newSession?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name, email, role')
-          .eq('id', newSession.user.id)
-          .single();
-        
-        setUserProfile(profile || {
-          name: newSession.user.user_metadata?.name || newSession.user.email?.split('@')[0] || 'User',
-          email: newSession.user.email || '',
-          role: 'user'
-        });
-      } else {
-        setUserProfile(null);
-      }
-    });
-
-    return () => subscription?.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      setSession(null);
+      await authAPI.logout();
       setUserProfile(null);
       
       toast({
@@ -93,15 +64,10 @@ const Navbar = () => {
       navigate("/");
     } catch (error: any) {
       console.error('Logout error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
-  const isLoggedIn = !!session;
+  const isLoggedIn = !!userProfile;
   const user = userProfile;
 
   const navLinks = [
@@ -182,6 +148,17 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             {isLoggedIn ? (
               <>
+                {/* Admin Dashboard Button - Only for admins */}
+                {user?.role === 'admin' && (
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Link to="/admin">
+                      <Button variant="default" size="sm" className="bg-primary hover:bg-primary/90">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Admin
+                      </Button>
+                    </Link>
+                  </motion.div>
+                )}
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link to="/">
                     <Button variant="ghost" size="sm">
@@ -277,21 +254,32 @@ const Navbar = () => {
                   </motion.div>
                 ))}
                 <motion.div 
-                  className="flex gap-4 pt-4 border-t border-border"
+                  className="flex flex-col gap-2 pt-4 border-t border-border"
                   variants={itemVariants}
                 >
                   {isLoggedIn ? (
                     <>
-                      <Link to="/" className="flex-1" onClick={() => setIsOpen(false)}>
-                        <Button variant="ghost" className="w-full">
-                          <UserCircle className="mr-2 h-4 w-4" />
-                          Profile
+                      {/* Admin Dashboard Button - Only for admins */}
+                      {user?.role === 'admin' && (
+                        <Link to="/admin" className="w-full" onClick={() => setIsOpen(false)}>
+                          <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
+                            <Settings className="mr-2 h-4 w-4" />
+                            Admin Dashboard
+                          </Button>
+                        </Link>
+                      )}
+                      <div className="flex gap-2">
+                        <Link to="/" className="flex-1" onClick={() => setIsOpen(false)}>
+                          <Button variant="ghost" className="w-full">
+                            <UserCircle className="mr-2 h-4 w-4" />
+                            Profile
+                          </Button>
+                        </Link>
+                        <Button variant="outline" className="flex-1" onClick={handleLogout}>
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Logout
                         </Button>
-                      </Link>
-                      <Button variant="outline" className="flex-1" onClick={handleLogout}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                      </Button>
+                      </div>
                     </>
                   ) : (
                     <>

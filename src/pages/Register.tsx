@@ -25,28 +25,15 @@ const Register = () => {
   });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          navigate("/");
-        }
-      } catch (error) {
-        console.error("Auth check error:", error);
-      } finally {
-        setCheckingAuth(false);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/", { replace: true });
       }
+      setCheckingAuth(false);
     };
 
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription?.unsubscribe();
+    checkSession();
   }, [navigate]);
 
   if (checkingAuth) {
@@ -65,21 +52,38 @@ const Register = () => {
     setLoading(true);
     
     try {
-      await authAPI.register(formData);
+      const result = await authAPI.register(formData);
+      console.log('Registration result:', result);
+      
+      if (result.needsConfirmation) {
+        toast({
+          title: "📧 Check your email!",
+          description: "We've sent you a confirmation link. Please verify your email to continue.",
+          className: "bg-blue-600 text-white border-blue-700",
+        });
+        setLoading(false);
+        return;
+      }
+      
       toast({
         title: "🎉 Welcome to AthleteX!",
         description: "😊 Your account has been created successfully. Let's get fit!",
         className: "bg-green-600 text-white border-green-700",
       });
-      navigate("/");
+      
+      // Wait a moment for Supabase session to sync
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Navigate to home page which will show Dashboard
+      navigate("/", { replace: true });
     } catch (error: any) {
+      console.error('Registration error:', error);
       toast({
         title: "❌ Registration Failed",
         description: "😔 " + (error.message || "Something went wrong. Please try again."),
         variant: "destructive",
         className: "bg-red-600 text-white border-red-700",
       });
-    } finally {
       setLoading(false);
     }
   };

@@ -13,47 +13,30 @@ export const ProtectedRoute = ({ children, requiredRole = 'user' }: ProtectedRou
   const location = useLocation();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          setIsAuthenticated(false);
-          return;
-        }
-
-        setIsAuthenticated(true);
-
-        // Check user role if admin route
-        if (requiredRole === 'admin') {
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          // Fetch user profile to check role
           const { data: profile } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', session.user.id)
             .single();
 
+          setIsAuthenticated(true);
           setUserRole(profile?.role || 'user');
+        } else {
+          setIsAuthenticated(false);
+          setUserRole(null);
         }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setIsAuthenticated(false);
       }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
     };
-
-    checkAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        setIsAuthenticated(false);
-        setUserRole(null);
-      } else {
-        setIsAuthenticated(true);
-      }
-    });
-
-    return () => subscription?.unsubscribe();
-  }, [requiredRole]);
+  }, []);
 
   // Still loading
   if (isAuthenticated === null) {

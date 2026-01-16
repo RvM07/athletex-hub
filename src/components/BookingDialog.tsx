@@ -25,6 +25,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { bookingsAPI } from "@/lib/api";
 
 interface BookingDialogProps {
   open: boolean;
@@ -34,8 +35,6 @@ interface BookingDialogProps {
   defaultType?: string;
   onBookingComplete?: () => void;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const BookingDialog = ({
   open,
@@ -53,20 +52,6 @@ const BookingDialog = ({
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const displayName = className || defaultType || sessionType;
-
-  const getBookingType = (): string => {
-    const name = (displayName || "").toLowerCase();
-    // Explicit personal training only when specified or booking with a trainer
-    if (trainer || name === "personal training" || name.includes("personal training")) {
-      return "personal_training";
-    }
-    // Gym visit
-    if (name === "gym visit" || name.includes("visit")) {
-      return "visit";
-    }
-    // All other named sessions (Yoga, CrossFit, Weight Training, etc.) are classes
-    return "class";
-  };
 
   useEffect(() => {
     if (open) {
@@ -116,41 +101,14 @@ const BookingDialog = ({
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("athletex_token");
-
-      if (!token) {
-        throw new Error("Please login to book a session");
-      }
-
-      const type = getBookingType();
-      const bookingPayload: any = {
-        type,
-        date: date.toISOString(),
-        timeSlot: time,
-      };
-      // Only attach className for class bookings
-      if (type === "class") {
-        bookingPayload.className = displayName;
-      }
-      // Only attach trainerName for personal training
-      if (type === "personal_training" && trainer) {
-        bookingPayload.trainerName = trainer;
-      }
-
-      const response = await fetch(`${API_URL}/bookings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(bookingPayload),
+      // Use Supabase bookingsAPI
+      await bookingsAPI.create({
+        className: displayName,
+        date: format(date, 'yyyy-MM-dd'),
+        time: time,
+        trainer: trainer,
+        notes: trainer ? `Session with ${trainer}` : undefined,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || "Booking failed");
-      }
 
       toast({
         title: "✅ Booking Confirmed!",
