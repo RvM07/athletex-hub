@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 import BookingDialog from "@/components/BookingDialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { authAPI } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 const classes = [
   {
@@ -91,7 +91,7 @@ const classes = [
 const Classes = () => {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState("");
-  const isLoggedIn = authAPI.isAuthenticated();
+  const { isAuthenticated: isLoggedIn } = useAuth();
 
   // Scroll to top on page load
   useEffect(() => {

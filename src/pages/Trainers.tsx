@@ -5,7 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BookingDialog from "@/components/BookingDialog";
 import { Button } from "@/components/ui/button";
-import { authAPI } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 const trainers = [
   {
@@ -73,7 +73,7 @@ const trainers = [
 const Trainers = () => {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState("");
-  const isLoggedIn = authAPI.isAuthenticated();
+  const { isAuthenticated: isLoggedIn } = useAuth();
 
   // Scroll to top on page load
   useEffect(() => {

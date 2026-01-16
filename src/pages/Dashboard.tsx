@@ -4,13 +4,21 @@ import {
   ArrowRight, User, ChevronRight, Activity, Plus, X,
   Flame, Heart, Swords, Music, Users
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { authAPI, bookingsAPI, membershipAPI } from "@/lib/api";
+import { bookingsAPI, membershipAPI } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface Booking {
   _id: string;
@@ -33,12 +41,46 @@ interface Membership {
 }
 
 const Dashboard = () => {
-  const user = authAPI.getStoredUser();
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Fetch user data
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          navigate('/login');
+          return;
+        }
+
+        // Get user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        setUser({
+          id: session.user.id,
+          name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email || '',
+          role: profile?.role || 'user'
+        });
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        navigate('/login');
+      }
+    };
+
+    fetchUser();
+  }, [navigate]);
 
   // Class data mapping - each class has its designated trainer
   const classData: Record<string, { icon: any; color: string; trainer: string }> = {

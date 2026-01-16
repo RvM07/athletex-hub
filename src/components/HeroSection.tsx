@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, CalendarDays } from "lucide-react";
 import { motion, useInView, type Variants } from "framer-motion";
 import { useRef } from "react";
-import { authAPI } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 const HeroSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
-  const isLoggedIn = authAPI.isAuthenticated();
+  const { isAuthenticated: isLoggedIn } = useAuth();
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },

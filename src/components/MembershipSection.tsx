@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion, useInView, type Variants } from "framer-motion";
 import { useRef } from "react";
-import { authAPI } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 const plans = [
   {
@@ -73,7 +73,7 @@ const plans = [
 const MembershipSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const isLoggedIn = authAPI.isAuthenticated();
+  const { isAuthenticated: isLoggedIn } = useAuth();
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },

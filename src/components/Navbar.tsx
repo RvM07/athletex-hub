@@ -1,30 +1,108 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, User, LogOut, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "./Logo";
 import { motion, AnimatePresence } from "framer-motion";
-import { authAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
+
+interface UserProfile {
+  name: string;
+  email: string;
+  role: string;
+}
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const isLoggedIn = authAPI.isAuthenticated();
-  const user = authAPI.getStoredUser();
 
-  const handleLogout = () => {
-    authAPI.logout();
-    toast({
-      title: "😢 Logged Out",
-      description: "You have been successfully logged out. See you soon!",
-      className: "bg-red-600 text-white border-red-700",
+  useEffect(() => {
+    // Get initial session
+    const initAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          // Fetch user profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name, email, role')
+            .eq('id', currentSession.user.id)
+            .single();
+          
+          setUserProfile(profile || {
+            name: currentSession.user.user_metadata?.name || currentSession.user.email?.split('@')[0] || 'User',
+            email: currentSession.user.email || '',
+            role: 'user'
+          });
+        }
+      } catch (error) {
+        console.error('Auth init error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      setSession(newSession);
+      
+      if (newSession?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name, email, role')
+          .eq('id', newSession.user.id)
+          .single();
+        
+        setUserProfile(profile || {
+          name: newSession.user.user_metadata?.name || newSession.user.email?.split('@')[0] || 'User',
+          email: newSession.user.email || '',
+          role: 'user'
+        });
+      } else {
+        setUserProfile(null);
+      }
     });
-    navigate("/");
-    window.location.reload();
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setSession(null);
+      setUserProfile(null);
+      
+      toast({
+        title: "😢 Logged Out",
+        description: "You have been successfully logged out. See you soon!",
+        className: "bg-red-600 text-white border-red-700",
+      });
+      navigate("/");
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  const isLoggedIn = !!session;
+  const user = userProfile;
 
   const navLinks = [
     { name: "Home", path: "/" },

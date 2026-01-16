@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { authAPI, membershipAPI } from "@/lib/api";
+import { membershipAPI } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 const plans: Record<string, any> = {
   monthly: { id: 'monthly', name: 'Monthly', price: 3000, duration: '1 Month', features: ["Full gym access", "All equipment usage", "Locker facility", "Fitness assessment"] },
@@ -25,8 +26,7 @@ const Checkout = () => {
   const planId = searchParams.get('plan') || 'monthly';
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const isLoggedIn = authAPI.isAuthenticated();
-  const user = authAPI.getStoredUser();
+  const { isAuthenticated: isLoggedIn, user, isLoading } = useAuth();
   
   const [formData, setFormData] = useState({
     cardNumber: '',
@@ -37,7 +37,7 @@ const Checkout = () => {
   });
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoading && !isLoggedIn) {
       toast({
         title: "🔒 Login Required",
         description: "Please log in to continue with your purchase.",
@@ -45,7 +45,7 @@ const Checkout = () => {
       });
       navigate(`/login?redirect=/checkout?plan=${planId}`);
     }
-  }, [isLoggedIn, navigate, planId, toast]);
+  }, [isLoggedIn, isLoading, navigate, planId, toast]);
 
   const selectedPlan = plans[planId as keyof typeof plans] || plans.monthly;
 

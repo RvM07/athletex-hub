@@ -11,7 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { bookingsAPI, authAPI } from "@/lib/api";
+import { bookingsAPI } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 const bookingTypes = [
   { id: "gym-visit", name: "Gym Visit", icon: Dumbbell, description: "Book a gym slot" },
@@ -49,7 +50,7 @@ const Booking = () => {
   const [groupClass, setGroupClass] = useState<string>("");
 
   // Check if user is logged in
-  const isLoggedIn = authAPI.isAuthenticated();
+  const { isAuthenticated: isLoggedIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

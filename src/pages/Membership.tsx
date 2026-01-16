@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { authAPI } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 const plans = [
   {
@@ -75,7 +75,7 @@ const plans = [
 ];
 
 const Membership = () => {
-  const isLoggedIn = authAPI.isAuthenticated();
+  const { isAuthenticated: isLoggedIn } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
