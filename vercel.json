@@ -1,5 +1,19 @@
 {
+  "framework": "vite",
+  "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install"
+  "builds": [
+    {
+      "src": "vite.config.ts",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
+  "env": {
+    "VITE_API_URL": "@vite_api_url"
+  },
+  "github": {
+    "silent": true
+  }
 }
