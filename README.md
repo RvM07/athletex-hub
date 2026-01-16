@@ -49,3 +49,5 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+<!--Supabase PW: AthleteX.fit_2026 -->
