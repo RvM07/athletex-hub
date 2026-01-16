@@ -12,9 +12,19 @@ app.use(cors());
 app.use(express.json());
 
 // Database Connection
-mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log('MongoDB Connected'))
-.catch(err => console.error('MongoDB Connection Error:', err));
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+  console.error('ERROR: MONGO_URI environment variable is not set!');
+  console.log('Please add MONGO_URI to your Render environment variables');
+} else {
+  mongoose.connect(MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  })
+  .then(() => console.log('✓ MongoDB Connected'))
+  .catch(err => console.error('✗ MongoDB Connection Error:', err.message));
+}
 
 // Routes
 const authRoutes = require('./routes/auth');
